@@ -1,5 +1,6 @@
 # Don't track content of these folders
 original_files/
+env/
 *.tar
 *.tar.Z
 *.tar.gz

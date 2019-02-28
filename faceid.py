@@ -40,7 +40,7 @@ class FaceId:
 		x1 = np.reshape(mface,(-1))
 		print(x1,x1.shape)
 		
-class ORLFaces(Database):
+class ORLFaces(FaceId):
 	def load_images(self):
 		classes = [f for f in listdir(self.path) if isdir(join(self.path, f))]
 		
@@ -60,7 +60,7 @@ class ORLFaces(Database):
 				self.images.append(img)
 				self.images_classes.append(class_file)
 			
-class YaleFaces(Database):
+class YaleFaces(FaceId):
 	def load_images(self):
 		files = [f for f in listdir(self.path) if isfile(join(self.path, f))]
 		for file in files:
