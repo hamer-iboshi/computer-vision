@@ -32,13 +32,23 @@ class FaceId:
 		mean = np.zeros(self.size, dtype=np.float64)
 		for img in self.images:
 			mean+=img
-			print(img.shape)
 		return mean/len(self.images)
 
 	def eigenFaces(self, Ml):
 		mface = self.meanFace()
-		x1 = np.reshape(mface,(-1))
-		print(x1,x1.shape)
+		meanFace = np.reshape(mface,(-1))
+		x = []
+		for img in self.images:
+			x.append(np.reshape(img,(-1)))
+			#print(img.shape,x)
+		#print(x)
+		x = np.array(x)
+		#print(x,x.shape,meanFace,meanFace.shape)
+		r = np.subtract(x,meanFace)
+		print(r,r.shape)
+		c = np.dot(r,r.T)
+		print(c,c.shape)
+		
 		
 class ORLFaces(FaceId):
 	def load_images(self):
