@@ -48,12 +48,12 @@ class FaceId:
 		c = np.dot(r,r.T)
 		w,v = np.linalg.eig(c) #eigen values, eigen vectors
 		eigenFace = []
-		print(r.shape,v.shape)
-		for Ai in r:
-			eigenFaces = np.dot(Ai,v[0])
-			print(eigenFaces.shape)
+		#print(r.shape,v.shape)
+		for i in range(0,Ml):
+			eigenFace.append(np.dot(r.T,v[i]))
 	
-		return eigenFaces	
+		#print(eigenFace)
+		return eigenFace	
 	
 	def eigenFaces2Img(self,efaces):
 
