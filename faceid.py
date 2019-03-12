@@ -45,11 +45,21 @@ class FaceId:
 		x = np.array(x)
 		#print(x,x.shape,meanFace,meanFace.shape)
 		r = np.subtract(x,meanFace)
-		print(r,r.shape)
 		c = np.dot(r,r.T)
-		print(c,c.shape)
-		
-		
+		w,v = np.linalg.eig(c) #eigen values, eigen vectors
+		eigenFace = []
+		print(r.shape,v.shape)
+		for Ai in r:
+			eigenFaces = np.dot(Ai,v[0])
+			print(eigenFaces.shape)
+	
+		return eigenFaces	
+	
+	def eigenFaces2Img(self,efaces):
+
+		#new_arr = ((ri - ri.min()) * (1/(ri.max() - ri.min())) * 255).astype('uint8')
+		pass
+
 class ORLFaces(FaceId):
 	def load_images(self):
 		classes = [f for f in listdir(self.path) if isdir(join(self.path, f))]
