@@ -56,9 +56,9 @@ class FaceId:
 		return eigenFace	
 	
 	def eigenFaces2Img(self,efaces):
-
-		#new_arr = ((ri - ri.min()) * (1/(ri.max() - ri.min())) * 255).astype('uint8')
-		pass
+		ef = np.reshape(efaces,(100,100))
+		ef = ((ef - ef.min()) * (1/(ef.max() - ef.min())) * 255).astype('uint8')
+		return ef
 
 class ORLFaces(FaceId):
 	def load_images(self):
