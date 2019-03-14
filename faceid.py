@@ -47,18 +47,24 @@ class FaceId:
 		r = np.subtract(x,meanFace)
 		c = np.dot(r,r.T)
 		w,v = np.linalg.eig(c) #eigen values, eigen vectors
+		eigenVectors = zip(w,v)
 		eigenFace = []
-		#print(r.shape,v.shape)
+		eigenVectors = np.sort(eigenVectors,axis=1)
+		v = eigenVectors[1,:]
 		for i in range(0,Ml):
 			eigenFace.append(np.dot(r.T,v[i]))
-	
-		#print(eigenFace)
+		eigenFace = np.array(eigenFace)
+		print(eigenFace,eigenFace.shape)
 		return eigenFace	
-	
+		
 	def eigenFaces2Img(self,efaces):
-		ef = np.reshape(efaces,(100,100))
-		ef = ((ef - ef.min()) * (1/(ef.max() - ef.min())) * 255).astype('uint8')
-		return ef
+		eigenFace = []
+		for ef in efaces:
+			ef = np.reshape(ef,(100,100))
+			eigenFace.append(((ef - ef.min()) * (1/(ef.max() - ef.min())) * 255).astype('uint8'))
+		return eigenFace
+
+#1 to N 
 
 class ORLFaces(FaceId):
 	def load_images(self):
