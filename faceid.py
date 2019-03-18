@@ -49,12 +49,15 @@ class FaceId:
 		w,v = np.linalg.eig(c) #eigen values, eigen vectors
 		eigenVectors = zip(w,v)
 		eigenFace = []
-		eigenVectors = np.sort(eigenVectors,axis=1)
-		v = eigenVectors[1,:]
-		for i in range(0,Ml):
-			eigenFace.append(np.dot(r.T,v[i]))
+		#eigenVectors = np.sort(eigenVectors,axis=1)
+		eigenVectors = sorted(eigenVectors, key=lambda x: x[0])
+		sorted_eigenV = []
+		for vector in eigenVectors:
+			sorted_eigenV.append(vector[1])
+		lengthV = len(sorted_eigenV)
+		for i in reversed(range(lengthV-Ml,lengthV)):
+			eigenFace.append(np.dot(r.T,sorted_eigenV[i]))
 		eigenFace = np.array(eigenFace)
-		print(eigenFace,eigenFace.shape)
 		return eigenFace	
 		
 	def eigenFaces2Img(self,efaces):
