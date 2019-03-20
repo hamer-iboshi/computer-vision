@@ -32,15 +32,44 @@ class FaceId:
 		mean = np.zeros(self.size, dtype=np.float64)
 		for img in self.images:
 			mean+=img
-			print(img.shape)
 		return mean/len(self.images)
 
 	def eigenFaces(self, Ml):
 		mface = self.meanFace()
-		x1 = np.reshape(mface,(-1))
-		print(x1,x1.shape)
+		meanFace = np.reshape(mface,(-1))
+		x = []
+		for img in self.images:
+			x.append(np.reshape(img,(-1)))
+			#print(img.shape,x)
+		#print(x)
+		x = np.array(x)
+		#print(x,x.shape,meanFace,meanFace.shape)
+		r = np.subtract(x,meanFace)
+		c = np.dot(r,r.T)
+		w,v = np.linalg.eig(c) #eigen values, eigen vectors
+		eigenVectors = zip(w,v)
+		eigenFace = []
+		#eigenVectors = np.sort(eigenVectors,axis=1)
+		eigenVectors = sorted(eigenVectors, key=lambda x: x[0])
+		sorted_eigenV = []
+		for vector in eigenVectors:
+			sorted_eigenV.append(vector[1])
+		lengthV = len(sorted_eigenV)
+		for i in reversed(range(lengthV-Ml,lengthV)):
+			eigenFace.append(np.dot(r.T,sorted_eigenV[i]))
+		eigenFace = np.array(eigenFace)
+		return eigenFace	
 		
-class ORLFaces(Database):
+	def eigenFaces2Img(self,efaces):
+		eigenFace = []
+		for ef in efaces:
+			ef = np.reshape(ef,(100,100))
+			eigenFace.append(((ef - ef.min()) * (1/(ef.max() - ef.min())) * 255).astype('uint8'))
+		return eigenFace
+
+#1 to N 
+
+class ORLFaces(FaceId):
 	def load_images(self):
 		classes = [f for f in listdir(self.path) if isdir(join(self.path, f))]
 		
@@ -60,7 +89,7 @@ class ORLFaces(Database):
 				self.images.append(img)
 				self.images_classes.append(class_file)
 			
-class YaleFaces(Database):
+class YaleFaces(FaceId):
 	def load_images(self):
 		files = [f for f in listdir(self.path) if isfile(join(self.path, f))]
 		for file in files:
