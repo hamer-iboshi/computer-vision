@@ -68,10 +68,10 @@ class IrisRec:
 		self.pathNorm = pathNorm
 		if self.pathEye: 
 			self.getEyeImages(self.pathEye,self.pathMask,self.pathIris,self.pathNorm)
-		elif self.Mask:
-			self.getMaskImages(self.pathEye,self.pathMask,self.pathIris,self.pathNorm)
-		elif self.pathNorm:
-			self.getIrisImages(self.pathNorm)
+		# elif self.Mask:
+		# 	self.getMaskImages(self.pathEye,self.pathMask,self.pathIris,self.pathNorm)
+		# elif self.pathNorm:
+		# 	self.getIrisImages(self.pathNorm)
 
 
 
@@ -136,6 +136,7 @@ class CASIAIris(IrisRec):
 		subjects_paths = [os.path.join(pathEye, d) for d in os.listdir(pathEye) if os.path.isdir(os.path.join(pathEye,d))]
 		for s,subject_paths in enumerate(subjects_paths, start=1):
 			# Get the label of the subject
+			print(os.path.split(subject_paths))
 			nsb = int(os.path.split(subject_paths)[1]) 
 
 			if pathMask and not os.path.exists(os.path.join(pathMask,os.path.split(subject_paths)[1])):
@@ -181,7 +182,7 @@ class CASIAIris(IrisRec):
 					if pathNorm:
 						imgpathNorm = os.path.join(pathNorm,os.path.split(subject_paths)[1],os.path.split(side_path)[1],os.path.split(eye_path)[1])
 						cv2.imwrite(imgpathNorm,imgNorm)
-
+					print("Show results.")
 					fig, aplt = plt.subplots(2,2)
 					aplt[0,0].imshow(imgEye,cmap='Greys_r')
 					aplt[0,1].imshow(imgMask,cmap='Greys_r')
@@ -201,52 +202,22 @@ class CASIAIris(IrisRec):
 
 	def SegIris(self, imgEye):
 		# angle points to find iris border
-		pts_iris = np.transpose([(mt.cos((mt.pi/180)*ang), mt.sin((mt.pi/180)*ang)) for ang in xrange(360)])
-
-		se3R = cv2.getStructuringElement(cv2.MORPH_RECT   ,(5,5)) # se 3x3 - Squar-shaped
-		se3C = cv2.getStructuringElement(cv2.MORPH_CROSS  ,(5,5)) # se 3x3 - Cross-shaped
-		se5R = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5)) # se 5x5 - Rhombus-shaped
 
 		## pupil detection
-		# opening - darkening 
-		ref = cv2.morphologyEx(imgEye, cv2.MORPH_OPEN, se5R, iterations=2)
-#		thres_otsu,img_otsu = cv2.threshold(ref,0,255,cv2.THRESH_OTSU)
-		binar = np.array(np.where(ref>30,255,0), 'uint8') # a half of otsu value
-
+		print(imgEye, imgEye.shape)
+		# opening - darkening 	
+		
 		# closing
-		rec = cv2.morphologyEx(binar, cv2.MORPH_CLOSE, se5R, iterations=3)
-		edges = cv2.Canny(rec,100,120)
+		
 
 		#Hough circles transform
-		circles = cv2.HoughCircles(edges, cv.CV_HOUGH_GRADIENT, 3.1, 100, minRadius=10, maxRadius=100)
-		tt = 0
-		while (circles is None and tt < 20):
-			edges = cv2.dilate(edges, se5R, iterations=1)
-			circles = cv2.HoughCircles(edges, cv.CV_HOUGH_GRADIENT, 3.1, 100, minRadius=10, maxRadius=100)
-			tt += 1
-
-		cy = 0
-		if circles is not None:
-			imgMask = np.zeros(imgEye.shape,dtype=np.uint8)
-
-			# convert the (x, y) coordinates and radius of the circles to integers
-			circles = np.round(circles[0, :]).astype("int")
-			# choose the one nearest to the center of the image
-			cimg = np.divide(imgEye.shape,2)
-			cx,cy,radPupil = circles[np.argmin(np.sum((circles[:,0:2]-cimg)**2,1)**(0.5)),:]
-
-			cv2.circle(imgMask, (cx, cy), radPupil, 255, 1)
-#			cv2.rectangle(imgMask, (x - 5, y - 5), (x + 5, y + 5), 128, -1)
-		else:
-			print 'Pupil not detected'
-			sys.exit(1)
 
 		fig, aplt = plt.subplots(1,2)
 		aplt[0].imshow(imgEye,cmap='Greys_r')
 		aplt[1].imshow(imgMask,cmap='Greys_r')
-		aplt[1,0].imshow(imgIris,cmap='Greys_r')
-		aplt[1,1].imshow(imgNorm,cmap='Greys_r')
-		plt.pause(0.1)
+		# aplt[1,0].imshow(imgIris,cmap='Greys_r')
+		# aplt[1,1].imshow(imgNorm,cmap='Greys_r')
+		plt.pause(0.5)
 		plt.close()
 
 		if len(circles) > 1:
