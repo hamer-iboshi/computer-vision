@@ -205,20 +205,22 @@ class CASIAIris(IrisRec):
 
 		## pupil detection
 		print(imgEye, imgEye.shape)
-		# opening - darkening 	
-		
+		# opening - darkening
+		imgBlur = cv2.blur(imgEye,(5,5))
+		ret,thresh1 = cv2.threshold(imgBlur,25,255,cv2.THRESH_BINARY_INV)
 		# closing
-		
+		edges = cv2.Canny(thresh1,0,255)
 
 		#Hough circles transform
 
 		fig, aplt = plt.subplots(1,2)
-		aplt[0].imshow(imgEye,cmap='Greys_r')
-		aplt[1].imshow(imgMask,cmap='Greys_r')
+		aplt[1].imshow(imgBlur,cmap='Greys_r')
+		aplt[0].imshow(edges,cmap='Greys_r')
 		# aplt[1,0].imshow(imgIris,cmap='Greys_r')
 		# aplt[1,1].imshow(imgNorm,cmap='Greys_r')
-		plt.pause(0.5)
+		plt.pause(15)
 		plt.close()
+		print("end of trushhold")
 
 		if len(circles) > 1:
 			print circles
@@ -300,16 +302,3 @@ class UBIRIS(IrisRec):
 				imageMask_pil = Image.open(imgMask_path).convert('L')
 				imageMask = np.array(imageMask_pil, 'uint8') # normalization
 				self.MaskImages.append(imageMask)
-
-
-## Path to the Yale Dataset
-#path = '/home/menotti/databases/yalefaces/'
-#print 'loading Yalefaces database'
-#yale = YaleFaces(path)
-#yale.eigenFaces2()
-
-## Path to the ORl Dataset
-#path = '/home/menotti/databases/orl_faces/'
-#print 'loading ORL database'
-#orl = ORL(path)
-#orl.eigenFaces2()
