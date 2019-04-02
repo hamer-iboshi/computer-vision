@@ -170,30 +170,31 @@ class CASIAIris(IrisRec):
 					print '{0}:{1}'.format(y,eye_path)
 					sys.stdout.flush()
 	
-					imgMask, imgIris = self.SegIris(imgEye)
-					if pathMask:
-						imgpathMask = os.path.join(pathMask,os.path.split(subject_paths)[1],os.path.split(side_path)[1],os.path.split(eye_path)[1])
-						cv2.imwrite(imgpathMask,imgMask)
+					# imgMask, imgIris = self.SegIris(imgEye)
+					imgIris = self.SegIris(imgEye)
+					# if pathMask:
+					# 	imgpathMask = os.path.join(pathMask,os.path.split(subject_paths)[1],os.path.split(side_path)[1],os.path.split(eye_path)[1])
+					# 	cv2.imwrite(imgpathMask,imgMask)
 					if pathIris:
 						imgpathIris = os.path.join(pathIris,os.path.split(subject_paths)[1],os.path.split(side_path)[1],os.path.split(eye_path)[1])
 						cv2.imwrite(imgpathIris,imgIris)
 
-					imgNorm = self.Mask2Norm(imgIris,imgMask,(32,256))
-					if pathNorm:
-						imgpathNorm = os.path.join(pathNorm,os.path.split(subject_paths)[1],os.path.split(side_path)[1],os.path.split(eye_path)[1])
-						cv2.imwrite(imgpathNorm,imgNorm)
+					# imgNorm = self.Mask2Norm(imgIris,imgMask,(32,256))
+					# if pathNorm:
+					# 	imgpathNorm = os.path.join(pathNorm,os.path.split(subject_paths)[1],os.path.split(side_path)[1],os.path.split(eye_path)[1])
+					# 	cv2.imwrite(imgpathNorm,imgNorm)
 					print("Show results.")
-					fig, aplt = plt.subplots(2,2)
-					aplt[0,0].imshow(imgEye,cmap='Greys_r')
-					aplt[0,1].imshow(imgMask,cmap='Greys_r')
-					aplt[1,0].imshow(imgIris,cmap='Greys_r')
-					aplt[1,1].imshow(imgNorm,cmap='Greys_r')
+					fig, aplt = plt.subplots(2,1)
+					aplt[0].imshow(imgEye,cmap='Greys_r')
+					# aplt[0,1].imshow(imgMask,cmap='Greys_r')
+					aplt[1].imshow(imgIris,cmap='Greys_r')
+					# aplt[1,1].imshow(imgNorm,cmap='Greys_r')
 					plt.pause(_waitingtime)
 					plt.close()
 
 					self.IrisImages.append(imgIris)
-					self.MaskImages.append(imgMask)
-					self.NormImages.append(imgNorm)
+					# self.MaskImages.append(imgMask)
+					# self.NormImages.append(imgNorm)
 				print ' done.'
 
 
@@ -206,20 +207,42 @@ class CASIAIris(IrisRec):
 		## pupil detection
 		print(imgEye, imgEye.shape)
 		# opening - darkening
-		imgBlur = cv2.blur(imgEye,(5,5))
+		imgEye = cv2.cvtColor(imgEye,cv2.COLOR_GRAY2BGR)
+		imgBlur = cv2.medianBlur(imgEye,5)
 		ret,thresh1 = cv2.threshold(imgBlur,25,255,cv2.THRESH_BINARY_INV)
 		# closing
 		edges = cv2.Canny(thresh1,0,255)
+		
 
 		#Hough circles transform
-
-		fig, aplt = plt.subplots(1,2)
-		aplt[1].imshow(imgBlur,cmap='Greys_r')
-		aplt[0].imshow(edges,cmap='Greys_r')
+		cimg = imgBlur
+		# plt.imshow(edges)
+		# plt.pause(5)
+		# plt.close()
+		circles = cv2.HoughCircles(edges,cv2.HOUGH_GRADIENT,1,20,
+                            param1=62,param2=20,minRadius=30,maxRadius=60)
+		circles = np.uint16(np.around(circles))
+		print(circles)
+		min_med = 0
+		min_circle = []
+		for i in circles[0,:]:
+			med = (i[0]+i[1]+i[2])/3
+			if(med>min_med):
+				min_med = med
+				min_circle = i    
+		# draw the outer circle
+		cv2.circle(cimg,(min_circle[0],min_circle[1]),min_circle[2],(0,255,0),2)
+		# draw the center of the circle
+		cv2.circle(cimg,(min_circle[0],min_circle[1]),2,(0,0,255),3)
+		imgIris = cimg
+		# fig, aplt = plt.subplots(1,3)
+		# aplt[2].imshow(imgBlur,cmap='Greys_r')
+		# aplt[1].imshow(cimg,cmap='Greys_r')
+		# aplt[0].imshow(edges,cmap='Greys_r')
 		# aplt[1,0].imshow(imgIris,cmap='Greys_r')
 		# aplt[1,1].imshow(imgNorm,cmap='Greys_r')
-		plt.pause(15)
-		plt.close()
+		# plt.pause(5)
+		# plt.close()
 		print("end of trushhold")
 
 		if len(circles) > 1:
@@ -266,6 +289,7 @@ class CASIAIris(IrisRec):
 		# 	sys.exit(1)
 
 		# return imgMask,imgIris
+		return imgIris
 	
 
 
