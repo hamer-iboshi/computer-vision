@@ -191,7 +191,7 @@ class CASIAIris(IrisRec):
 					# aplt[1,1].imshow(imgNorm,cmap='Greys_r')
 					plt.pause(_waitingtime)
 					plt.close()
-
+					# exit(0)
 					self.IrisImages.append(imgIris)
 					# self.MaskImages.append(imgMask)
 					# self.NormImages.append(imgNorm)
@@ -205,7 +205,7 @@ class CASIAIris(IrisRec):
 		# angle points to find iris border
 
 		## pupil detection
-		print(imgEye, imgEye.shape)
+		# print(imgEye, imgEye.shape)
 		# opening - darkening
 		imgEye = cv2.cvtColor(imgEye,cv2.COLOR_GRAY2BGR)
 		imgBlur = cv2.medianBlur(imgEye,5)
@@ -215,12 +215,11 @@ class CASIAIris(IrisRec):
 		
 
 		#Hough circles transform
-		cimg = imgBlur
-		# plt.imshow(edges)
-		# plt.pause(5)
-		# plt.close()
+		cimg = imgBlur.copy()
+		print(cimg.shape,imgBlur.shape)
+		#Get circles for pupil
 		circles = cv2.HoughCircles(edges,cv2.HOUGH_GRADIENT,1,20,
-                            param1=62,param2=20,minRadius=30,maxRadius=60)
+                            param1=62,param2=20,minRadius=30,maxRadius=65)
 		circles = np.uint16(np.around(circles))
 		print(circles)
 		min_med = 0
@@ -234,7 +233,16 @@ class CASIAIris(IrisRec):
 		cv2.circle(cimg,(min_circle[0],min_circle[1]),min_circle[2],(0,255,0),2)
 		# draw the center of the circle
 		cv2.circle(cimg,(min_circle[0],min_circle[1]),2,(0,0,255),3)
+		for i in range(0,20):
+			cv2.circle(cimg,(min_circle[0],min_circle[1]),min_circle[2]+30+i*3,(255,0,0),1)
+		
 		imgIris = cimg
+		
+		#try to compute cocentric circles
+		# first_average_circle = 10
+		# average_circle = 0
+		# while first_average_circle > average_circle:
+		
 		# fig, aplt = plt.subplots(1,3)
 		# aplt[2].imshow(imgBlur,cmap='Greys_r')
 		# aplt[1].imshow(cimg,cmap='Greys_r')
@@ -249,45 +257,12 @@ class CASIAIris(IrisRec):
 			print circles
 
 		## iris contour detection
-		# if radPupil is not None and len(circles) >= 1:
-		# 	# hist equalized
-		# 	image_eq = cv2.equalizeHist(imgEye)
-
+		
 		# 	#calc intensity
-		# 	itss = []
-		# 	# initial distance
-		# 	in_dist = 20
-
-		# 	im_h, im_w = np.shape(imgEye)
-
-		# 	# max radius to concentric circles
-		# 	maxr = min(im_h - cy, im_w - cx, cx, cy)-radPupil-in_dist
-
-		# 	if maxr > 0:
-		# 		yim = (cy + pts_iris[1]*(radPupil+in_dist)).astype(int)
-		# 		xim = (cx + pts_iris[0]*(radPupil+in_dist)).astype(int)
-
+		
 		# 		# computing concentric circles
-		# 		its = image_eq[yim, xim]
-		# 		for rad in range(1,maxr,1):
-		# 			its_aux = image_eq[((cy + pts_iris[1]*(radPupil+in_dist+rad)).astype(int), 
-  #                                       (cx + pts_iris[0]*(radPupil+in_dist+rad)).astype(int))]
-		# 			itss.append(np.mean(np.abs(its - its_aux)))
-		# 			its = its_aux
-
-		# 	radIris = radPupil+in_dist+range(1,maxr,1)[itss.index(max(itss))]
-		# 	cv2.circle(imgMask, (cx, cy), radIris, 255, 1)
-
-		# 	h,w = imgMask.shape[:2]
-		# 	mask = np.zeros((h+2,w+2),np.uint8)
-		# 	cv2.floodFill(imgMask, mask, (cx+radPupil+1, cy), 255);
-
-		# 	imgIris = imgEye.copy()
-		# 	imgIris[np.where(imgMask!=255)] = 0
-		# else:
-		# 	print '{0}.circles detected'.format(len(circles))
-		# 	sys.exit(1)
-
+		
+		
 		# return imgMask,imgIris
 		return imgIris
 	
