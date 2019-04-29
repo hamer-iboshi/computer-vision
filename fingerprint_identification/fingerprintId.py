@@ -29,11 +29,11 @@ class FingerprintId:
 			print(file_path)
 			img = Image.frombytes('L',self.size, open(file_path).read(), decoder_name='raw')
 			img.load()
-			cimg = np.asarray(img)
-			#cv2.imshow(file,img)
-			#cv2.waitKey(0)
-			eimg = self.enhacement(cimg)
-			cv2.imshow(file,eimg)
+			img = np.array(img)
+			cv2.imshow(file,img)
+			cv2.waitKey(0)
+			eimg = self.enhacement(img)
+			cv2.imshow(file+'2',eimg)
 			cv2.waitKey(0)
 			self.images.append(eimg)
 			print(file[0:4])
@@ -41,28 +41,32 @@ class FingerprintId:
 
 	def enhacement(self, img):
 		dimg = np.copy(img)
-		size_i = self.size[0]
-		size_j = self.size[1]
 		mean = img.mean()
 		variance = img.var()
 		s = 96
 		y = 95
-		alfa = 150 
+		alfa = 150
+		print("BEFORE",img)
 		while s > y:
 			mean = dimg.mean()
 			variance = dimg.var()
 			s = np.sqrt(variance)
+			eimg = []
 			print("S < Y ",s)
-			for i in range(0,size_i):
-				for j in range(0,size_j):
-					dimg[j][i]=alfa+y*((img[i][j]-mean)/s)
-			
-		print(dimg)
-		dimg = scale_image(dimg)
-		return dimg
+			for i in dimg:
+				row = []
+				for j in i:
+					p = alfa+y*((j-mean)/s)
+					row.append(p)
+				eimg.append(row)
+		eimg = np.array(eimg)
+		eimg = scale_image(eimg)
+		print("AFTER",dimg)
+		return eimg
 
 def scale_image(arr):
-	new_arr = ((arr - arr.min()) * (1/(arr.max() - arr.min())) * 255).astype('uint8')
+	print(arr.min(),arr.max(),arr)
+	new_arr = (((arr - arr.min()) * (1/(arr.max() - arr.min()) * 255)).astype('uint8'))
 	return new_arr
 
 def main(argv):
