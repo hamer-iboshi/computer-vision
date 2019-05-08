@@ -33,6 +33,9 @@ class FingerprintId:
 			cv2.imshow(file,img)
 			cv2.waitKey(0)
 			eimg = self.enhacement(img)
+			print(eimg.shape)
+			eimg = self.orientation(eimg)
+			print(eimg.shape)
 			cv2.imshow(file+'2',eimg)
 			cv2.waitKey(0)
 			self.images.append(eimg)
@@ -63,6 +66,59 @@ class FingerprintId:
 		eimg = scale_image(eimg)
 		print("AFTER",dimg)
 		return eimg
+
+	def orientation(self, img):
+		#SOBEL (1)
+		blur_img = np.copy(img)
+		blur_img = cv2.blur(blur_img, (5, 5))
+		sobelx = cv2.Sobel(blur_img, cv2.CV_64F, 1, 0, ksize=5)
+		sobely = cv2.Sobel(blur_img, cv2.CV_64F, 0, 1, ksize=5)
+		grad_img = np.empty(self.size, dtype=object)
+		for i in range(0,self.size[0]):
+			for j in range(0, self.size[1]):
+				grad_img[i][j] = [sobelx[i][j], sobely[i][j]]
+
+		#AVERAGE ORIENTATION (2,3)
+		block_size = 10
+		block_size_x = int(np.floor(self.size[0] / block_size))
+		block_size_y = int(np.floor(self.size[1] / block_size))
+		size = (block_size_x,block_size_y)
+		grad_vectors = self.calc_gradient_vectors(grad_img)
+		average_blocks = np.empty(size, dtype=object)
+		for bi in range(0, block_size_x):
+			for by in range(0, block_size_y):
+				bgradients = []
+				for i in range(bi * block_size, (bi * block_size) + block_size):
+					for j in range(by * block_size, (by * block_size) + block_size):
+						bgradients.append(grad_vectors[i][j])
+				bsum = np.sum(bgradients,axis=0)
+				bmean = [bsum[0] / (block_size * block_size), bsum[1] / (block_size * block_size)]
+				average_blocks[bi][by] = bmean
+
+		#PRINT ORIENTATION BLOCKS(2,4)
+		for i in range(0,block_size_x):
+			for j in range(0, block_size_y):
+				radians = 0.5 * np.arctan2(average_blocks[i][j][1],average_blocks[i][j][0]) + np.pi/2
+				# print(radians,0.5*np.arctan2(average_blocks[i][j][1],average_blocks[i][j][0]))
+				inv_radians = radians + np.pi
+				center_line = ((j * block_size) + (np.ceil(block_size/2)), i * block_size + np.ceil(block_size/2))
+				center_line = (int(center_line[0]),int(center_line[1]))
+
+				end_line0 = (center_line[0] + 6 * np.cos(radians),center_line[1] + 6 * np.sin(radians))
+				end_line0 = (int(end_line0[0]),int(end_line0[1]))
+
+				end_line1 = (center_line[0] + 6 * np.cos(inv_radians),center_line[1] + 6 * np.sin(inv_radians))
+				end_line1 = (int(end_line1[0]),int(end_line1[1]))
+				cv2.line(img, end_line0, end_line1, (0,0,0), 1)
+		return img
+
+	def calc_gradient_vectors(self, gradient):
+		calc_gradient = np.empty(self.size, dtype=object)
+		for i in range(0,self.size[0]):
+			for j in range(0, self.size[1]):
+				g = gradient[i][j]
+				calc_gradient[i][j] = [(g[0] * g[0] - g[1] * g[1]),(2 * g[0] * g[1])]
+		return calc_gradient
 
 def scale_image(arr):
 	print(arr.min(),arr.max(),arr)
