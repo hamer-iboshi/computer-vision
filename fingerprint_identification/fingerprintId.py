@@ -1,4 +1,4 @@
-import cv2, os, sys
+import cv2, os, sys, math
 from os import listdir
 from os.path import join,isdir,isfile
 
@@ -19,6 +19,7 @@ class FingerprintId:
 		self.path = path
 		self.size = size
 		self.block_size = []
+		self.valid_blocks = []
 		self.images = []
 		self.images_classes = []
 		self.load_images()
@@ -31,15 +32,17 @@ class FingerprintId:
 			img = Image.frombytes('L',self.size, open(file_path).read(), decoder_name='raw')
 			img.load()
 			img = np.array(img)
-			cv2.imshow(file,img)
-			cv2.waitKey(0)
+			#cv2.imshow(file,img)
+			#cv2.waitKey(0)
 			eimg = self.enhacement(img)
 			print(eimg.shape)
 			eimg = self.orientation(eimg)
 			print(eimg.shape)
-			cv2.imshow(file+'2',eimg)
+			self.region_interest_detection(img)
+			dimg = test_detection(img)
+			self.images.append(dimg)
+			cv2.imshow(file+'2',dimg)
 			cv2.waitKey(0)
-			self.images.append(eimg)
 			print(file[0:4])
 			self.images_classes.append(file[0:4])
 
@@ -88,14 +91,14 @@ class FingerprintId:
 		grad_vectors = self.calc_gradient_vectors(grad_img)
 		average_blocks = np.empty(size, dtype=object)
 		for bi in range(0, block_size_x):
-			for by in range(0, block_size_y):
+			for bj in range(0, block_size_y):
 				bgradients = []
 				for i in range(bi * block_size, (bi * block_size) + block_size):
-					for j in range(by * block_size, (by * block_size) + block_size):
+					for j in range(bj * block_size, (bj * block_size) + block_size):
 						bgradients.append(grad_vectors[i][j])
 				bsum = np.sum(bgradients,axis=0)
 				bmean = [bsum[0] / (block_size * block_size), bsum[1] / (block_size * block_size)]
-				average_blocks[bi][by] = bmean
+				average_blocks[bi][bj] = bmean
 
 		#PRINT ORIENTATION BLOCKS(2,4)
 		for i in range(0,block_size_x):
@@ -124,16 +127,32 @@ class FingerprintId:
 	
 	def region_interest_detection(self, img):
 	#calculate mean and standard deviation from each block for shades of grey
+		self.valid_blocks = [[ 0 for i in range(0,self.block_size[1])] for j in range(0,self.block_size[2])]
 		for bi in range(0, self.block_size[1]):
-			for bj range(0, self.block_size[2]):
+			for bj in range(0, self.block_size[2]):
 				block_pixels = []
-				for i in range(bi * self.block_size[1], (bi * self.block_size[1]) + self.block_size[1]):
-					for j in range(bj * self.block_size[2], (bj * self.block_size[2]) + self.block_size[2]):
+				for i in range(bi * self.block_size[0], (bi * self.block_size[0]) + self.block_size[0]):
+					for j in range(bj * self.block_size[0], (bj * self.block_size[0]) + self.block_size[0]):
 						block_pixels.append(img[i][j])
-				ratio_d = 
-				v = 0.5 * (1 - np.mean(block_pixels)) + 0.5 * np.std(block_pixels) + ratio_d
-				if( v > 0.8):
+				bx = bi * self.block_size[1]/2
+				by = bj * self.block_size[2]/2
+				major_distance_center = (self.size[1]/2)*(math.sqrt(2)/2)
+				distance_block_center = math.sqrt( (bx - (self.size[0]/2))**2 + (by - (self.size[1]/2))**2)
+				print("DIST",major_distance_center,distance_block_center)
+				v = 0.5 * (1 - (np.mean(block_pixels)/max(block_pixels))) + 0.5 * (np.std(block_pixels)/max(block_pixels)) + (distance_block_center/major_distance_center)
+				if(v > 0.8):
+					self.valid_blocks[bi][bj] = 1
+		print(self.valid_blocks)
 	
+	def test_detection(self, img):
+		tdimg = np.copy(img)
+		for bi in range(0, self.block_size[1]):
+			for bj in range(0, self.block_size[2]):
+				if(self.valid_blocks[i][j]):
+					for i in range(bi * self.block_size[0], (bi * self.block_size[0]) + self.block_size[0]):
+						for j in range(bj * self.block_size[0], (bj * self.block_size[0]) + self.block_size[0]):
+							tdimg[i][j] = 255
+		return tdimg
 def scale_image(arr):
 	print(arr.min(),arr.max(),arr)
 	new_arr = (((arr - arr.min()) * (1/(arr.max() - arr.min()) * 255)).astype('uint8'))
