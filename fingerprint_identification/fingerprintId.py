@@ -18,6 +18,7 @@ class FingerprintId:
 	def __init__(self, path,size = (300,300)):
 		self.path = path
 		self.size = size
+		self.block_size = []
 		self.images = []
 		self.images_classes = []
 		self.load_images()
@@ -82,6 +83,7 @@ class FingerprintId:
 		block_size = 10
 		block_size_x = int(np.floor(self.size[0] / block_size))
 		block_size_y = int(np.floor(self.size[1] / block_size))
+		self.block_size = [block_size, block_size_x, block_size_y]
 		size = (block_size_x,block_size_y)
 		grad_vectors = self.calc_gradient_vectors(grad_img)
 		average_blocks = np.empty(size, dtype=object)
@@ -119,7 +121,19 @@ class FingerprintId:
 				g = gradient[i][j]
 				calc_gradient[i][j] = [(g[0] * g[0] - g[1] * g[1]),(2 * g[0] * g[1])]
 		return calc_gradient
-
+	
+	def region_interest_detection(self, img):
+	#calculate mean and standard deviation from each block for shades of grey
+		for bi in range(0, self.block_size[1]):
+			for bj range(0, self.block_size[2]):
+				block_pixels = []
+				for i in range(bi * self.block_size[1], (bi * self.block_size[1]) + self.block_size[1]):
+					for j in range(bj * self.block_size[2], (bj * self.block_size[2]) + self.block_size[2]):
+						block_pixels.append(img[i][j])
+				ratio_d = 
+				v = 0.5 * (1 - np.mean(block_pixels)) + 0.5 * np.std(block_pixels) + ratio_d
+				if( v > 0.8):
+	
 def scale_image(arr):
 	print(arr.min(),arr.max(),arr)
 	new_arr = (((arr - arr.min()) * (1/(arr.max() - arr.min()) * 255)).astype('uint8'))
