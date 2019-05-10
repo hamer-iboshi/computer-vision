@@ -39,9 +39,9 @@ class FingerprintId:
 			eimg = self.orientation(eimg)
 			print(eimg.shape)
 			self.region_interest_detection(img)
-			dimg = test_detection(img)
-			self.images.append(dimg)
-			cv2.imshow(file+'2',dimg)
+			dimg = self.test_detection(img)
+			self.images.append(eimg)
+			cv2.imshow(file+'2',eimg)
 			cv2.waitKey(0)
 			print(file[0:4])
 			self.images_classes.append(file[0:4])
@@ -134,13 +134,18 @@ class FingerprintId:
 				for i in range(bi * self.block_size[0], (bi * self.block_size[0]) + self.block_size[0]):
 					for j in range(bj * self.block_size[0], (bj * self.block_size[0]) + self.block_size[0]):
 						block_pixels.append(img[i][j])
-				bx = bi * self.block_size[1]/2
-				by = bj * self.block_size[2]/2
-				major_distance_center = (self.size[1]/2)*(math.sqrt(2)/2)
+				bx = bi * (self.block_size[0]/2)
+				by = bj * (self.block_size[0]/2)
+				major_distance_center = (self.size[0])*(math.sqrt(2)/2)
 				distance_block_center = math.sqrt( (bx - (self.size[0]/2))**2 + (by - (self.size[1]/2))**2)
-				print("DIST",major_distance_center,distance_block_center)
+				print("DIST", bx,by,major_distance_center,self.size[0]/2)
 				v = 0.5 * (1 - (np.mean(block_pixels)/max(block_pixels))) + 0.5 * (np.std(block_pixels)/max(block_pixels)) + (distance_block_center/major_distance_center)
-				if(v > 0.8):
+				print("DIST",v, 0.5 * (1 - (np.mean(block_pixels)/max(block_pixels))),0.5 * (np.std(block_pixels)/max(block_pixels)),(distance_block_center/major_distance_center))
+				cv2.circle(img,(bx,by),5,(0,255,0))
+				cv2.imshow('test_intes',img)
+				cv2.waitKey(0)
+				
+				if(v <= 0.80):
 					self.valid_blocks[bi][bj] = 1
 		print(self.valid_blocks)
 	
@@ -148,10 +153,10 @@ class FingerprintId:
 		tdimg = np.copy(img)
 		for bi in range(0, self.block_size[1]):
 			for bj in range(0, self.block_size[2]):
-				if(self.valid_blocks[i][j]):
+				if(self.valid_blocks[bi][bj]):
 					for i in range(bi * self.block_size[0], (bi * self.block_size[0]) + self.block_size[0]):
 						for j in range(bj * self.block_size[0], (bj * self.block_size[0]) + self.block_size[0]):
-							tdimg[i][j] = 255
+							tdimg[i][j] = 0
 		return tdimg
 def scale_image(arr):
 	print(arr.min(),arr.max(),arr)
