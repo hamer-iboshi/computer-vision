@@ -3,11 +3,11 @@ from os import listdir
 from os.path import join,isdir,isfile
 
 from PIL import Image
-from matplotlib import pyplot as plt
+#from matplotlib import pyplot as plt
 import numpy as np
 
 waitingtime = 0.1
-	
+
 DBPath = {
 	"lindex": "Lindex101",
 	"rindex": "Rindex28"
@@ -20,6 +20,8 @@ class FingerprintId:
 		self.size = size
 		self.block_size = []
 		self.valid_blocks = []
+		self.angle_blocks = []
+		self.singularity = []
 		self.images = []
 		self.images_classes = []
 		self.load_images()
@@ -32,17 +34,19 @@ class FingerprintId:
 			img = Image.frombytes('L',self.size, open(file_path).read(), decoder_name='raw')
 			img.load()
 			img = np.array(img)
-			#cv2.imshow(file,img)
+			#cv2.imshow("original",img)
 			#cv2.waitKey(0)
 			eimg = self.enhacement(img)
 			print(eimg.shape)
 			eimg = self.orientation(eimg)
 			print(eimg.shape)
 			self.region_interest_detection(img)
-			dimg = self.test_detection(img)
-			self.images.append(eimg)
-			cv2.imshow(file+'2',eimg)
+			# dimg = self.test_detection(img)
+			type = self.singular_point_detection(img)
+			# print(type)
+			cv2.imshow("orientation"+file,eimg)
 			cv2.waitKey(0)
+			self.images.append(eimg)
 			print(file[0:4])
 			self.images_classes.append(file[0:4])
 
@@ -83,7 +87,7 @@ class FingerprintId:
 				grad_img[i][j] = [sobelx[i][j], sobely[i][j]]
 
 		#AVERAGE ORIENTATION (2,3)
-		block_size = 10
+		block_size = 15
 		block_size_x = int(np.floor(self.size[0] / block_size))
 		block_size_y = int(np.floor(self.size[1] / block_size))
 		self.block_size = [block_size, block_size_x, block_size_y]
@@ -101,9 +105,11 @@ class FingerprintId:
 				average_blocks[bi][bj] = bmean
 
 		#PRINT ORIENTATION BLOCKS(2,4)
+		self.angle_blocks = [[ 0 for i in range(0,self.block_size[1])] for j in range(0,self.block_size[2])]
 		for i in range(0,block_size_x):
 			for j in range(0, block_size_y):
 				radians = 0.5 * np.arctan2(average_blocks[i][j][1],average_blocks[i][j][0]) + np.pi/2
+				self.angle_blocks[i][j] = radians
 				# print(radians,0.5*np.arctan2(average_blocks[i][j][1],average_blocks[i][j][0]))
 				inv_radians = radians + np.pi
 				center_line = ((j * block_size) + (np.ceil(block_size/2)), i * block_size + np.ceil(block_size/2))
@@ -114,7 +120,7 @@ class FingerprintId:
 
 				end_line1 = (center_line[0] + 6 * np.cos(inv_radians),center_line[1] + 6 * np.sin(inv_radians))
 				end_line1 = (int(end_line1[0]),int(end_line1[1]))
-				cv2.line(img, end_line0, end_line1, (0,0,0), 1)
+				cv2.line(img, end_line0, end_line1, (255,255,255), 2)
 		return img
 
 	def calc_gradient_vectors(self, gradient):
@@ -124,7 +130,7 @@ class FingerprintId:
 				g = gradient[i][j]
 				calc_gradient[i][j] = [(g[0] * g[0] - g[1] * g[1]),(2 * g[0] * g[1])]
 		return calc_gradient
-	
+
 	def region_interest_detection(self, img):
 	#calculate mean and standard deviation from each block for shades of grey
 		self.valid_blocks = [[ 0 for i in range(0,self.block_size[1])] for j in range(0,self.block_size[2])]
@@ -134,21 +140,21 @@ class FingerprintId:
 				for i in range(bi * self.block_size[0], (bi * self.block_size[0]) + self.block_size[0]):
 					for j in range(bj * self.block_size[0], (bj * self.block_size[0]) + self.block_size[0]):
 						block_pixels.append(img[i][j])
-				bx = bi * (self.block_size[0]/2)
-				by = bj * (self.block_size[0]/2)
+				bx = bi * self.block_size[0] + self.block_size[0]/2
+				by = bj * self.block_size[0] + self.block_size[0]/2
 				major_distance_center = (self.size[0])*(math.sqrt(2)/2)
 				distance_block_center = math.sqrt( (bx - (self.size[0]/2))**2 + (by - (self.size[1]/2))**2)
-				print("DIST", bx,by,major_distance_center,self.size[0]/2)
-				v = 0.5 * (1 - (np.mean(block_pixels)/max(block_pixels))) + 0.5 * (np.std(block_pixels)/max(block_pixels)) + (distance_block_center/major_distance_center)
-				print("DIST",v, 0.5 * (1 - (np.mean(block_pixels)/max(block_pixels))),0.5 * (np.std(block_pixels)/max(block_pixels)),(distance_block_center/major_distance_center))
-				cv2.circle(img,(bx,by),5,(0,255,0))
-				cv2.imshow('test_intes',img)
-				cv2.waitKey(0)
-				
-				if(v <= 0.80):
+				# print("DIST", bx,by,major_distance_center,distance_block_center)
+				v = 0.5 * (1 - (np.mean(block_pixels)/max(block_pixels))) + 0.5 * (np.std(block_pixels)/max(block_pixels)) + (1-(distance_block_center/major_distance_center))
+				# print("DIST",v, 0.5 * (1 - (np.mean(block_pixels)/max(block_pixels))),0.5 * (np.std(block_pixels)/max(block_pixels)),(distance_block_center/major_distance_center))
+				# cv2.circle(img,(bx,by),5,(0,255,0))
+				# cv2.imshow('test_intes',img)
+				# cv2.waitKey(0)
+
+				if(v <= 0.50):
 					self.valid_blocks[bi][bj] = 1
-		print(self.valid_blocks)
-	
+		# print(self.valid_blocks)
+
 	def test_detection(self, img):
 		tdimg = np.copy(img)
 		for bi in range(0, self.block_size[1]):
@@ -158,6 +164,43 @@ class FingerprintId:
 						for j in range(bj * self.block_size[0], (bj * self.block_size[0]) + self.block_size[0]):
 							tdimg[i][j] = 0
 		return tdimg
+
+
+	def singular_point_detection(self, img):
+		near_blocks = [(-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1)]
+		cores = []
+		interval = 20
+		for bi in range(1, self.block_size[1]-1):
+			for bj in range(1, self.block_size[2]-1):
+				if(self.valid_blocks[bi][bj]):
+					poincare_index = 0
+					previus = near_blocks[0]
+					for i in range(1,len(near_blocks)):
+						poincare_index += (np.degrees(self.angle_blocks[bi+previus[0]][bj+previus[1]]) - np.degrees(self.angle_blocks[bi+near_blocks[i][0]][bj+near_blocks[i][1]]))
+						previus = near_blocks[i]
+					print(poincare_index)
+					if (180 - interval <= poincare_index) and (poincare_index <= 180 + interval):
+						print("loop")
+						cv2.circle(img,(bi*self.block_size[0] + self.block_size[0]/2,bj*self.block_size[0] + self.block_size[0]/2),5,(0,255,0),3)
+						cv2.imshow('detection point',img)
+						cv2.waitKey(0)
+						return("loop")
+					if (-180 - interval <= poincare_index) and (poincare_index <= -180 + interval):
+						print("delta")
+						cv2.circle(img,(bi*self.block_size[0] + self.block_size[0]/2,bj*self.block_size[0] + self.block_size[0]/2),5,(0,255,0),3)
+						cv2.imshow('detection point',img)
+						cv2.waitKey(0)
+						return("delta")
+					if (360 - interval <= poincare_index) and (poincare_index <= 360 + interval):
+						print("whorl")
+						cv2.circle(img,(bi*self.block_size[0] + self.block_size[0]/2,bj*self.block_size[0] + self.block_size[0]/2),5,(0,255,0),3)
+						cv2.imshow('detection point',img)
+						cv2.waitKey(0)
+						return("whorl")
+
+		return None
+
+
 def scale_image(arr):
 	print(arr.min(),arr.max(),arr)
 	new_arr = (((arr - arr.min()) * (1/(arr.max() - arr.min()) * 255)).astype('uint8'))
