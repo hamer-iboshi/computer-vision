@@ -21,6 +21,7 @@ class FingerprintId:
 		self.block_size = []
 		self.valid_blocks = []
 		self.angle_blocks = []
+		self.grad_blocks = []
 		self.singularity = []
 		self.images = []
 		self.images_classes = []
@@ -41,11 +42,13 @@ class FingerprintId:
 			eimg = self.orientation(eimg)
 			print(eimg.shape)
 			self.region_interest_detection(img)
-			# dimg = self.test_detection(img)
-			type = self.singular_point_detection(img)
-			# print(type)
+			dimg = self.test_detection(img)
+			timg = self.singular_point_detection(eimg)
+			#print(type)
+			cv2.imshow("detection"+file,dimg)
 			cv2.imshow("orientation"+file,eimg)
-			cv2.waitKey(0)
+			cv2.imshow("detect img"+file,timg)
+			cv2.waitKey(1000000)
 			self.images.append(eimg)
 			print(file[0:4])
 			self.images_classes.append(file[0:4])
@@ -76,6 +79,7 @@ class FingerprintId:
 		return eimg
 
 	def orientation(self, img):
+		img = np.array(img)
 		#SOBEL (1)
 		blur_img = np.copy(img)
 		blur_img = cv2.blur(blur_img, (5, 5))
@@ -103,7 +107,7 @@ class FingerprintId:
 				bsum = np.sum(bgradients,axis=0)
 				bmean = [bsum[0] / (block_size * block_size), bsum[1] / (block_size * block_size)]
 				average_blocks[bi][bj] = bmean
-
+		self.grad_blocks = average_blocks
 		#PRINT ORIENTATION BLOCKS(2,4)
 		self.angle_blocks = [[ 0 for i in range(0,self.block_size[1])] for j in range(0,self.block_size[2])]
 		for i in range(0,block_size_x):
@@ -120,7 +124,7 @@ class FingerprintId:
 
 				end_line1 = (center_line[0] + 6 * np.cos(inv_radians),center_line[1] + 6 * np.sin(inv_radians))
 				end_line1 = (int(end_line1[0]),int(end_line1[1]))
-				cv2.line(img, end_line0, end_line1, (255,255,255), 2)
+				cv2.line(img, end_line0, end_line1, (255,0,0), 2)
 		return img
 
 	def calc_gradient_vectors(self, gradient):
@@ -172,33 +176,42 @@ class FingerprintId:
 		interval = 20
 		for bi in range(1, self.block_size[1]-1):
 			for bj in range(1, self.block_size[2]-1):
-				if(self.valid_blocks[bi][bj]):
+				if(not self.valid_blocks[bi][bj]):
+					#smoth the direction
+					a = self.grad_blocks[bi][bj][0]*2
+					b = self.grad_blocks[bi][bj][1]*2
+					for i in range(0,8):
+						a += self.grad_blocks[bi+near_blocks[i][0]][bj+near_blocks[i][1]][0]
+						b += self.grad_blocks[bi+near_blocks[i][0]][bj+near_blocks[i][1]][1]
+					self.angle_blocks[bi][bj] = 0.5*np.arctan(b/a)
+
+
+					#get poincare
 					poincare_index = 0
 					previus = near_blocks[0]
 					for i in range(1,len(near_blocks)):
-						poincare_index += (np.degrees(self.angle_blocks[bi+previus[0]][bj+previus[1]]) - np.degrees(self.angle_blocks[bi+near_blocks[i][0]][bj+near_blocks[i][1]]))
+						poincare_index += lowestAngleDiff(self.angle_blocks[bi+previus[0]][bj+previus[1]],self.angle_blocks[bi+near_blocks[i][0]][bj+near_blocks[i][1]])
 						previus = near_blocks[i]
+					poincare_index = np.degrees(poincare_index)
 					print(poincare_index)
 					if (180 - interval <= poincare_index) and (poincare_index <= 180 + interval):
 						print("loop")
-						cv2.circle(img,(bi*self.block_size[0] + self.block_size[0]/2,bj*self.block_size[0] + self.block_size[0]/2),5,(0,255,0),3)
-						cv2.imshow('detection point',img)
-						cv2.waitKey(0)
-						return("loop")
+						cv2.circle(img,(bi*self.block_size[0] + self.block_size[0]/2,bj*self.block_size[0] + self.block_size[0]/2),5,(0,0,0),3)
 					if (-180 - interval <= poincare_index) and (poincare_index <= -180 + interval):
 						print("delta")
-						cv2.circle(img,(bi*self.block_size[0] + self.block_size[0]/2,bj*self.block_size[0] + self.block_size[0]/2),5,(0,255,0),3)
-						cv2.imshow('detection point',img)
-						cv2.waitKey(0)
-						return("delta")
+						cv2.circle(img,(bi*self.block_size[0] + self.block_size[0]/2,bj*self.block_size[0] + self.block_size[0]/2),5,(0,0,0),3)
 					if (360 - interval <= poincare_index) and (poincare_index <= 360 + interval):
-						print("whorl")
-						cv2.circle(img,(bi*self.block_size[0] + self.block_size[0]/2,bj*self.block_size[0] + self.block_size[0]/2),5,(0,255,0),3)
-						cv2.imshow('detection point',img)
-						cv2.waitKey(0)
-						return("whorl")
+						print("whorl",bi*self.block_size[0] + self.block_size[0]/2,bj*self.block_size[0] + self.block_size[0]/2)
+						cv2.circle(img,(bi*self.block_size[0] + self.block_size[0]/2,bj*self.block_size[0] + self.block_size[0]/2),5,(0,0,0),3)
 
-		return None
+		return img
+
+def lowestAngleDiff(a1, a2):
+	phi = a1 - a2
+	if abs(phi) > 3.14:
+		sign = -1 if phi < 0 else 1
+		phi = -1 * sign * (6.28 - abs(phi))
+	return phi
 
 
 def scale_image(arr):
