@@ -5,6 +5,7 @@ from os.path import join,isdir,isfile
 from PIL import Image
 #from matplotlib import pyplot as plt
 import numpy as np
+import json
 
 waitingtime = 0.1
 
@@ -25,32 +26,63 @@ class FingerprintId:
 		self.singularity = []
 		self.images = []
 		self.images_classes = []
+		self.original_classes = []
+		self.names = []
 		self.load_images()
 
 	def load_images(self):
 		files = [f for f in listdir(self.path) if isfile(join(self.path, f)) and f.endswith(".raw")]
 		for file in files:
+			signs = {'delta': 0, 'core': 0}
 			file_path = self.path+'/'+file
-			print(file_path)
+			if self.path == 'Rindex28':
+				json_path = self.path+'-type/'+file[0:6]+'.lif'
+				json_data = json.loads(open(json_path).read())
+				for sign in json_data['shapes']:
+					# print(sign)
+					if sign['label'] == 'core':
+						signs['core']+=1
+					elif sign['label'] == 'delta':
+						signs['delta']+=1
+			# print(signs)
+			# print(file_path)
 			img = Image.frombytes('L',self.size, open(file_path).read(), decoder_name='raw')
 			img = np.array(img, 'uint8')
 			#cv2.imshow("original",img)
 			#cv2.waitKey(0)
 			eimg = self.enhacement(img)
-			print(eimg.shape)
+			# print(eimg.shape)
 			eimg = self.orientation(eimg)
-			print(eimg.shape)
+			# print(eimg.shape)
 			self.region_interest_detection(img)
 			dimg = self.test_detection(img)
-			timg = self.singular_point_detection(eimg)
+			img = cv2.cvtColor(img,cv2.COLOR_BGR2RGB)
+			eimg = cv2.cvtColor(eimg,cv2.COLOR_BGR2RGB)
+			coordinates, eimg = self.singular_point_detection(eimg)
+			class_image = self.classify_fingerprint(coordinates)
+			img = self.show_regions(img, coordinates)
 			#print(type)
-			cv2.imshow("detection"+file,dimg)
-			cv2.imshow("orientation"+file,eimg)
-			cv2.imshow("detect img"+file,timg)
-			cv2.waitKey(0)
-			self.images.append(eimg)
-			print(file[0:4])
-			self.images_classes.append(file[0:4])
+			# cv2.imshow("detection"+file,dimg)
+			# cv2.imshow("orientation"+file,dimg)
+			# cv2.imshow("detect img"+class_image,img)
+			# cv2.waitKey(0)
+			self.images.append(img)
+			self.images_classes.append(class_image)
+			self.original_classes.append(signs)
+			print(file[0:6])
+			self.names.append(file[0:6])
+
+	def show_regions(self ,img, coordinates):
+		delta = coordinates['delta']
+		loop = coordinates['loop']
+		whorl = coordinates['whorl']
+		for i in loop:
+			cv2.circle(img,(int(i[0]),int(i[1])),5,(0,255,0),3)			
+		for i in delta:
+			cv2.circle(img,(int(i[0]),int(i[1])),5,(255,0,0),3)			
+		for i in whorl:
+			cv2.circle(img,(int(i[0]),int(i[1])),5,(0,0,255),3)
+		return img			
 
 	def enhacement(self, img):
 		dimg = np.copy(img)
@@ -147,7 +179,7 @@ class FingerprintId:
 				major_distance_center = (self.size[0])*(math.sqrt(2)/2)
 				distance_block_center = math.sqrt( (bx - (self.size[0]/2))**2 + (by - (self.size[1]/2))**2)
 				# print("DIST", bx,by,major_distance_center,distance_block_center)
-				v = 0.5 * (1 - (np.mean(block_pixels)/max(block_pixels))) + 0.5 * (np.std(block_pixels)/max(block_pixels)) + (1-(distance_block_center/major_distance_center))
+				v = 0.7 * (1 - (np.mean(block_pixels)/max(block_pixels))) + 0.7 * (np.std(block_pixels)/max(block_pixels)) + 0.7*(1-(distance_block_center/major_distance_center))
 				# print("DIST",v, 0.5 * (1 - (np.mean(block_pixels)/max(block_pixels))),0.5 * (np.std(block_pixels)/max(block_pixels)),(distance_block_center/major_distance_center))
 				# cv2.circle(img,(bx,by),5,(0,255,0))
 				# cv2.imshow('test_intes',img)
@@ -170,18 +202,23 @@ class FingerprintId:
 
 	def singular_point_detection(self, img):
 		near_blocks = [(-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1)]
-		cores = []
+		coordinates_loop = [] #coordinates of interest
+		coordinates_delta = [] 
+		coordinates_whorl = [] 
 		interval = 0.5
 		for bi in range(1, self.block_size[1]-1):
 			for bj in range(1, self.block_size[2]-1):
-				if(not self.valid_blocks[bi][bj]):
+				if(not self.valid_blocks[bi][bj]) and \
+						(not self.valid_blocks[bi-1][bj-1]) and (not self.valid_blocks[bi+1][bj+1]) and \
+						(not self.valid_blocks[bi+1][bj]) and (not self.valid_blocks[bi-1][bj]) and \
+						(not self.valid_blocks[bi][bj+1]) and (not self.valid_blocks[bi][bj-1]):
 					#smoth the direction
-					a = self.grad_blocks[bi][bj][0]*2
-					b = self.grad_blocks[bi][bj][1]*2
-					for i in range(0,8):
-						a += self.grad_blocks[bi+near_blocks[i][0]][bj+near_blocks[i][1]][0]
-						b += self.grad_blocks[bi+near_blocks[i][0]][bj+near_blocks[i][1]][1]
-					self.angle_blocks[bi][bj] = 0.5*np.arctan(b/a)
+					# a = self.grad_blocks[bi][bj][0]*2
+					# b = self.grad_blocks[bi][bj][1]*2
+					# for i in range(0,8):
+					# 	a += self.grad_blocks[bi+near_blocks[i][0]][bj+near_blocks[i][1]][0]
+					# 	b += self.grad_blocks[bi+near_blocks[i][0]][bj+near_blocks[i][1]][1]
+					# self.angle_blocks[bi][bj] = 0.5*np.arctan(b/a)
 
 
 					#get poincare
@@ -197,18 +234,76 @@ class FingerprintId:
 					poincare_index = poincare_index
 
 					coord = (bj * self.block_size[0] + self.block_size[0]/2,bi * self.block_size[0]  + self.block_size[0]/2)
-					print(poincare_index, coord)
 					if (180 - interval <= poincare_index) and (poincare_index <= 180 + interval):
-						print("loop", coord)
-						cv2.circle(img,coord,5,(0,0,0),3)
+						coordinates_loop.append(coord)
+						# print("loop", coord)
+						cv2.circle(img,coord,5,(0,255,0),3)
 					if (-180 - interval <= poincare_index) and (poincare_index <= -180 + interval):
-						print("delta",coord)
-						cv2.circle(img,coord,5,(0,0,0),3)
-					# if (360 - interval <= poincare_index) and (poincare_index <= 360 + interval):
-					# 	print("whorl",coord )
-					# 	cv2.circle(img,coord,5,(0,0,0),3)
+						# print("delta",coord)
+						coordinates_delta.append(coord)
+						cv2.circle(img,coord,5,(255,0,0),3)
+					if (360 - interval <= poincare_index) and (poincare_index <= 360 + interval):
+						# print("whorl",coord)
+						coordinates_whorl.append(coord)
+						cv2.circle(img,coord,5,(0,0,255),3)
+		coordinates_loop = group_coordinates(coordinates_loop,(self.block_size[0]*np.sqrt(2)))
+		coordinates_whorl = group_coordinates(coordinates_whorl,(self.block_size[0]*np.sqrt(2)))
+		coordinates_delta = group_coordinates(coordinates_delta,(self.block_size[0]*np.sqrt(2)))
+		coordinates = {}
+		coordinates['loop'] = coordinates_loop
+		coordinates['delta'] = coordinates_delta
+		coordinates['whorl'] = coordinates_whorl
+		return coordinates, img
 
-		return img
+	def classify_fingerprint(self, coordinates):
+		cores, deltas = count_sign(coordinates)
+		if(cores == 0 and deltas == 0):
+			return('other')
+		if(cores == 2 and deltas >= 2):
+			return('whorl')
+		if(cores == 1 and deltas == 0):
+			return('arch')
+		if(cores == 0 and deltas == 1):
+			return('arch')
+		if(cores == 1 and deltas == 1):
+			return(define_side(coordinates))
+		return('other')
+
+
+
+def count_sign(coordinates):
+	ncore = len(coordinates['loop'])
+	ndelta = len(coordinates['delta'])
+	return (ncore, ndelta)
+
+def define_side(coordinates):
+	if(coordinates['loop'][0][0] > coordinates['delta'][0][0]):
+		return ('right_loop')
+	return ('left_loop')
+
+def group_coordinates(coordinates, max_distance):
+	if len(coordinates) == 0:
+		return []
+	groups = {}
+	groups[0] = [coordinates[0]]
+	g_count = 1
+	for i,x in enumerate(coordinates[1:]):
+		is_grouped = False
+		for g in groups:
+			for coord in groups[g]:
+				if np.sqrt( (coord[0]-x[0])**2 + (coord[1]-x[1])**2) <= max_distance:
+					groups[g].append(x)
+					is_grouped = True        
+					break
+			if is_grouped:
+				break
+		if not is_grouped:
+			groups[g_count] = [x]
+			g_count+=1        
+	
+	return [np.mean(groups[g], axis=0) for g in groups]
+	# return [np.median(groups[g], axis=0) for g in groups]
+
 
 signum = lambda x: -1 if x < 0 else 1
 
@@ -220,13 +315,57 @@ def get_angle(left, right):
 
 
 def scale_image(arr):
-	print(arr.min(),arr.max(),arr)
+	# print(arr.min(),arr.max(),arr)
 	new_arr = (((arr - arr.min()) * (1/(arr.max() - arr.min()) * 255)).astype('uint8'))
 	return new_arr
 
 def main(argv):
-	fp = FingerprintId(DBPath['lindex'])
-
-
+	# lind = FingerprintId(DBPath['lindex'])
+	rind = FingerprintId(DBPath['rindex'])
+	classes = zip(rind.images_classes,rind.original_classes)
+	acc = 0
+	err = 0
+	all = 0
+	for computed,original in classes:
+		all=all+1
+		# print(computed,original)
+		cores = original['core']
+		deltas = original['delta']
+		# print(cores,deltas)
+		if cores == 0 and deltas == 0:
+			if 'other' == computed:
+				acc=acc+1
+			else:
+				err=err+1
+		elif cores == 2 and deltas >= 2:
+			if 'whorl' == computed:
+				acc=acc+1
+				# print(original,computed)
+			else:
+				err=err+1
+		elif cores == 1 and deltas == 0:
+			if 'arch' == computed:
+				acc=acc+1
+				# print(original,computed)
+			else:
+				err=err+1
+		elif cores == 0 and deltas == 1:
+			if 'arch' == computed:
+				acc=acc+1
+				# print(original,computed)
+			else:
+				err=err+1
+		elif cores == 1 and deltas == 1:
+			if computed == 'right_loop' or computed == 'left_loop':
+				acc=acc+1
+				print(original,computed)
+			else:
+				err=err+1
+		else:
+			err=err+1
+	print("todos",all)
+	print("erros",err)
+	print("acertos",acc)
+	print("acuracia",(acc*1.0)/all)
 if __name__ == "__main__":
 	main(sys.argv[1:])
