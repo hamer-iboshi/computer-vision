@@ -6,6 +6,7 @@ from PIL import Image
 #from matplotlib import pyplot as plt
 import numpy as np
 import imutils
+import re
 
 waitingtime = 0.1
 
@@ -14,7 +15,8 @@ DBPath = {
 	"test": "Test"
 }
 
-image_path = '/home/html/inf/menotti/ci1028-191'
+#image_path = '/home/html/inf/menotti/ci1028-191'
+image_path = '/home/hi15/BCC/BCC9/computer-vision/pedestrian_detection'
 
 class Pedestrian:
 
@@ -27,11 +29,12 @@ class Pedestrian:
 		limit = 4
 		text_annotations = open(self.path+'/annotations.lst','r')
 		for index,text in enumerate(text_annotations):
-			annotations = open(image_path+'/INRIAPerson/'+text[0:-1])
+			annotations = open(image_path+'/INRIAPerson/'+text[0:-1],'r')
 			image_name = text.split('/',-1)[-1][0:-5]
 			img = cv2.imread(self.path+'/pos/'+image_name+'.png')
 			aimg = np.array(img)
-			print(self.path+'/pos/'+image_name,aimg.shape)
+			coord = get_persons_coord(annotations)
+			print(self.path+'/pos/'+image_name,aimg.shape,coord)
 			#cv2.imshow('img',img)
 			#cv2.waitKey(0)
 			if index == limit:
@@ -40,7 +43,17 @@ class Pedestrian:
 
 #calcular a orientacao e a magnitude para cada canal e filtrar pela maior magnitude
 def hog_feature_extraction():
+	
 	return None
+
+def get_persons_coord(annotation):
+	coord = []
+	regex = r"\s\([\d]+,\s[\d]+\)\s\-\s\([\d]+\,\s[\d]+\)"
+	text_coords = re.findall(regex, annotation.read(), re.MULTILINE)
+	for text_coord	in text_coords:
+		value_coord = re.findall(r"[\d]+",text_coord, re.MULTILINE)
+		coord.append(value_coord)
+	return coord
 
 def pyramid_method(img):
 	# METHOD #1: No smooth, just scaling.
