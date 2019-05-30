@@ -5,7 +5,7 @@ from os.path import join,isdir,isfile
 from PIL import Image
 #from matplotlib import pyplot as plt
 import numpy as np
-import imutils
+#import imutils
 import re
 
 waitingtime = 0.1
@@ -15,8 +15,8 @@ DBPath = {
 	"test": "Test"
 }
 
-#image_path = '/home/html/inf/menotti/ci1028-191'
-image_path = '/home/hi15/BCC/BCC9/computer-vision/pedestrian_detection'
+image_path = '/home/html/inf/menotti/ci1028-191'
+#image_path = '/home/hi15/BCC/BCC9/computer-vision/pedestrian_detection'
 
 class Pedestrian:
 
@@ -26,7 +26,7 @@ class Pedestrian:
 		self.load_images()
 
 	def load_images(self):
-		limit = 4
+		limit = 1
 		text_annotations = open(self.path+'/annotations.lst','r')
 		for index,text in enumerate(text_annotations):
 			annotations = open(image_path+'/INRIAPerson/'+text[0:-1],'r')
@@ -34,9 +34,17 @@ class Pedestrian:
 			img = cv2.imread(self.path+'/pos/'+image_name+'.png')
 			aimg = np.array(img)
 			coord = get_persons_coord(annotations)
-			print(self.path+'/pos/'+image_name,aimg.shape,coord)
-			#cv2.imshow('img',img)
-			#cv2.waitKey(0)
+			#get only first but in the end get all persons
+			first = coord[0]
+			print(first,aimg.shape,image_name,text)
+			#person_img = [[[ aimg[i+first[1]-1][j+first[0]-1][k] for i in range(0,first[3]-first[1])] for j in range(0,first[2]-first[0])] for k in range(0,3) ] 
+			person_img = [[[ aimg[i+first[1]][j+first[0]][k] for k in range(0,3)] for j in range(0,first[2]-first[0])] for i in range(0,first[3]-first[1])] 
+			person_img = np.array(person_img)
+			print(self.path+'/pos/'+image_name,aimg.shape,person_img.shape)
+			cv2.imshow('img',aimg)
+			cv2.waitKey(0)
+			cv2.imshow('img',person_img)
+			cv2.waitKey(0)
 			if index == limit:
 				break
 		return None
@@ -52,6 +60,7 @@ def get_persons_coord(annotation):
 	text_coords = re.findall(regex, annotation.read(), re.MULTILINE)
 	for text_coord	in text_coords:
 		value_coord = re.findall(r"[\d]+",text_coord, re.MULTILINE)
+		value_coord = map(int,value_coord)
 		coord.append(value_coord)
 	return coord
 
