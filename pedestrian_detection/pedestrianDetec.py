@@ -6,9 +6,12 @@ from PIL import Image
 
 from sklearn import svm
 #from matplotlib import pyplot as plt
+import re
 import numpy as np
 #import imutils
-import re
+import sklearn
+from sklearn.metrics import classification_report,accuracy_score
+from sklearn import svm
 
 waitingtime = 0.1
 
@@ -19,6 +22,7 @@ DBPath = {
 
 # image_path = '/home/html/inf/menotti/ci1028-191'
 image_path = '/home/hi15/BCC/BCC9/computer-vision/pedestrian_detection'
+
 
 class Pedestrian:
 
@@ -49,7 +53,7 @@ class Pedestrian:
 			(H, hogImage) = feature.hog(person_img.copy(), orientations=9, pixels_per_cell=(8, 8),cells_per_block=(2, 2), transform_sqrt=True,  block_norm="L1",visualize=True)
 			self.images.append([person_img,H,'pos'])
 			self.hogs.append(H)
-			self.labels.append('pos')
+			self.labels.append(1)
 			cv2.imshow('img',hogImage)
 			cv2.waitKey(0)
 			# cv2.imshow('img',person_img)
@@ -63,11 +67,14 @@ class Pedestrian:
 			neg_img = cv2.imread(neg_path+file)
 			(H, hogImage) = feature.hog(neg_img.copy(), orientations=9, pixels_per_cell=(8, 8),cells_per_block=(2, 2), transform_sqrt=True,  block_norm="L1",visualize=True)
 			self.hogs.append(H)
-			self.labels.append('neg')
+			self.labels.append(0)
 			cv2.imshow('img',hogImage)
 			cv2.waitKey(0)
 			if index == limit:
 				break
+		self.hogs = np.asarray(self.hogs)
+		self.labels = np.asarray(self.labels)
+
 
 #calcular a orientacao e a magnitude para cada canal e filtrar pela maior magnitude
 def hog_feature_extraction(img):
@@ -112,11 +119,34 @@ def pyramid(image, scale=1.5, minSize=(30, 30)):
  
 		# yield the next image in the pyramid
 		yield image
+#svm
+def shuffle(labels, hogs):
+	labels =  labels.reshape(len(labels),1)
+	data = np.hstack((hogs,labels))
+	np.random.shuffle(data)
+	return data
 
+#percentage you want to training
+def train(labels, hogs, data):
+	clf = svm.SVC(gamma='auto', C=0.7)
+	percentage = 80
+	partition = int(len(hogs)*percentage/100)
+	x_train, x_test = data[:partition,:-1],  data[partition:,:-1]
+	y_train, y_test = data[:partition,-1:].ravel() , data[partition:,-1:].ravel()
+	clf.fit(x_train,y_train)
+	return ([x_train, y_train], [x_test, y_test], clf)
+
+def test(data, clf):
+	y_pred = clf.predict(data[0])
+	accuracy = accuracy_score(data[1], y_pred)
+	return accuracy
 
 def main(argv):
 	rind = Pedestrian(DBPath['train'])
-	S = svm(rind.labels,rind.hogs)
+	data = shuffle(rind.labels,rind.hogs)
+	data_train, data_test, clf = train(rind.labels, rind.hogs, data)
+	score = test(data_test, clf)
+	print(score)
 
 if __name__ == "__main__":
 	main(sys.argv[1:])
