@@ -1,8 +1,10 @@
 import cv2, os, sys, math
 from os import listdir
 from os.path import join,isdir,isfile
-
+from skimage import feature
 from PIL import Image
+
+from sklearn import svm
 #from matplotlib import pyplot as plt
 import numpy as np
 #import imutils
@@ -15,14 +17,17 @@ DBPath = {
 	"test": "Test"
 }
 
-image_path = '/home/html/inf/menotti/ci1028-191'
-#image_path = '/home/hi15/BCC/BCC9/computer-vision/pedestrian_detection'
+# image_path = '/home/html/inf/menotti/ci1028-191'
+image_path = '/home/hi15/BCC/BCC9/computer-vision/pedestrian_detection'
 
 class Pedestrian:
 
 	def __init__(self, path):
 		self.path = image_path+'/INRIAPerson/'+path
 		self.annotations = []
+		self.images = []
+		self.hogs = []
+		self.labels = []
 		self.load_images()
 
 	def load_images(self):
@@ -41,18 +46,35 @@ class Pedestrian:
 			person_img = [[[ aimg[i+first[1]][j+first[0]][k] for k in range(0,3)] for j in range(0,first[2]-first[0])] for i in range(0,first[3]-first[1])] 
 			person_img = np.array(person_img)
 			print(self.path+'/pos/'+image_name,aimg.shape,person_img.shape)
-			cv2.imshow('img',aimg)
+			(H, hogImage) = feature.hog(person_img.copy(), orientations=9, pixels_per_cell=(8, 8),cells_per_block=(2, 2), transform_sqrt=True,  block_norm="L1",visualize=True)
+			self.images.append([person_img,H,'pos'])
+			self.hogs.append(H)
+			self.labels.append('pos')
+			cv2.imshow('img',hogImage)
 			cv2.waitKey(0)
-			cv2.imshow('img',person_img)
+			# cv2.imshow('img',person_img)
+			# cv2.waitKey(0)
+			if index == limit:
+				break
+		neg_path = self.path+'/neg/'
+		files = [f for f in listdir(neg_path) if isfile(join(neg_path, f))]
+		for index,file in enumerate(files):
+			print(index,file)
+			neg_img = cv2.imread(neg_path+file)
+			(H, hogImage) = feature.hog(neg_img.copy(), orientations=9, pixels_per_cell=(8, 8),cells_per_block=(2, 2), transform_sqrt=True,  block_norm="L1",visualize=True)
+			self.hogs.append(H)
+			self.labels.append('neg')
+			cv2.imshow('img',hogImage)
 			cv2.waitKey(0)
 			if index == limit:
 				break
-		return None
 
 #calcular a orientacao e a magnitude para cada canal e filtrar pela maior magnitude
-def hog_feature_extraction():
+def hog_feature_extraction(img):
 	
-	return None
+	cv2.imshow('img',aimg)
+	cv2.wait(0)
+	# return None
 
 def get_persons_coord(annotation):
 	coord = []
@@ -94,7 +116,7 @@ def pyramid(image, scale=1.5, minSize=(30, 30)):
 
 def main(argv):
 	rind = Pedestrian(DBPath['train'])
-
+	S = svm(rind.labels,rind.hogs)
 
 if __name__ == "__main__":
 	main(sys.argv[1:])
